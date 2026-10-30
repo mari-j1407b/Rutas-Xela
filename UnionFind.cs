@@ -64,6 +64,13 @@ class UnionFind
     // Busca la posición de una parada mediante su código.
     private int BuscarIndice(string codigoParada)
     {
+        if (string.IsNullOrWhiteSpace(codigoParada))
+        {
+            return -1;
+        }
+
+        codigoParada = codigoParada.Trim();
+
         for (int indice = 0; indice < cantidad; indice++)
         {
             if (CodigosParadas[indice] == codigoParada)
