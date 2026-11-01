@@ -36,7 +36,7 @@ public class ColaPrioridadMinima
         Subir(tamanio);
     }
 
-    public NodoPrioridad Extraerminimo()
+    public NodoPrioridad ExtraerMinimo()
     {
         NodoPrioridad minimo = monticulo[1];
         monticulo[1] = monticulo[tamanio];
