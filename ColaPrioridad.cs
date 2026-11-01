@@ -1,3 +1,4 @@
+
 ﻿public class NodoPrioridad
 {
     public int IndiceParada;

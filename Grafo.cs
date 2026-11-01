@@ -19,6 +19,7 @@ public class GrafoTransporte
     private string[] codigosParadas;
     private int cantidadActualParadas;
 
+
     public GrafoTransporte(int cantidadParadas)
     {
         listaAdyacencia = new NodoRuta[cantidadParadas];
@@ -28,6 +29,7 @@ public class GrafoTransporte
 
     // Agregar parada, Agrega ruta, bfs, dfs, dijkstra
 
+<<<<<<< HEAD
     public int ObtenerIndiceParada(string codigo)
     {
         for (int i = 0; i < cantidadActualParadas; i++)
@@ -270,4 +272,6 @@ public class PilaEstatica
         tope--;
         return elemento;
     }
+=======
+>>>>>>> e480e83aa1104067958c4abc8ca941e280690aa6
 }
