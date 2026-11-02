@@ -1,7 +1,7 @@
 
 using System;
 
-class UnionFind
+public class UnionFind
 {
     // Guarda los códigos de las paradas.
     private string[] CodigosParadas;
