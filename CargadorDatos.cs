@@ -6,8 +6,9 @@ public sealed class CargadorDatos
     public TablaHash TablaHash { get; }
     public GrafoTransporte Grafo { get; }
     public Trie Trie { get; }
-    public UnionFind UnionFind { get; }
+    public UnionFind UnionFind { get; private set; }
     public IReadOnlyList<Parada> Paradas { get; }
+    public string RutaArchivo { get; }
 
     public CargadorDatos()
         : this(Path.Combine(AppContext.BaseDirectory, "data", "paradas.csv"))
@@ -21,7 +22,8 @@ public sealed class CargadorDatos
             throw new ArgumentException("La ruta del CSV es obligatoria.", nameof(rutaArchivo));
         }
 
-        string[] lineas = File.ReadAllLines(rutaArchivo);
+        RutaArchivo = Path.GetFullPath(rutaArchivo);
+        string[] lineas = File.ReadAllLines(RutaArchivo);
         Parada[] paradasLeidas = new Parada[lineas.Length];
         int[] lineasParadas = new int[lineas.Length];
         RutaCsv[] rutasLeidas = new RutaCsv[lineas.Length];
@@ -135,6 +137,11 @@ public sealed class CargadorDatos
         Trie = trie;
         UnionFind = unionFind;
         Paradas = Array.AsReadOnly(paradasLeidas);
+    }
+
+    public void ReconstruirUnionFind()
+    {
+        UnionFind = Grafo.CrearUnionFind();
     }
 
     private static Parada LeerParada(string[] campos, int numeroLinea)

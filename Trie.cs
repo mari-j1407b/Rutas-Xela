@@ -67,6 +67,43 @@ public class Trie
         return true;
     }
 
+    public bool Eliminar(string nombreParada, string codigoParada)
+    {
+        if (string.IsNullOrWhiteSpace(nombreParada) || string.IsNullOrWhiteSpace(codigoParada))
+        {
+            return false;
+        }
+
+        nombreParada = nombreParada.Trim().ToLowerInvariant();
+        foreach (char caracter in nombreParada)
+        {
+            if (caracter >= 256)
+            {
+                return false;
+            }
+        }
+
+        return Eliminar(Raiz, nombreParada, codigoParada, 0);
+    }
+
+    private static bool Eliminar(NodoTrie nodo, string nombre, string codigo, int indice)
+    {
+        if (indice == nombre.Length)
+        {
+            if (!nodo.EsFinPalabra || !string.Equals(nodo.CodigoParada, codigo, StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+
+            nodo.EsFinPalabra = false;
+            nodo.CodigoParada = "";
+            return true;
+        }
+
+        NodoTrie hijo = nodo.Hijos[nombre[indice]];
+        return hijo != null && Eliminar(hijo, nombre, codigo, indice + 1);
+    }
+
     // Busca los códigos de las paradas que coinciden con un prefijo.
     public string[] BuscarPrefijo(string prefijo, int maximoResultados = 10)
     {

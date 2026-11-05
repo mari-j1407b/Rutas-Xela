@@ -34,13 +34,20 @@ public sealed class ResultadoRutaGrafo
     public string Mensaje { get; }
     public string[] Camino { get; }
     public int TiempoTotal { get; }
+    public double CostoTotal { get; }
 
     public ResultadoRutaGrafo(bool exito, string mensaje, string[] camino, int tiempoTotal)
+        : this(exito, mensaje, camino, tiempoTotal, 0)
+    {
+    }
+
+    public ResultadoRutaGrafo(bool exito, string mensaje, string[] camino, int tiempoTotal, double costoTotal)
     {
         Exito = exito;
         Mensaje = mensaje;
         Camino = camino;
         TiempoTotal = tiempoTotal;
+        CostoTotal = costoTotal;
     }
 }
 
@@ -448,6 +455,21 @@ public class GrafoTransporte
     // Calcula la ruta de menor tiempo mediante Dijkstra.
     public ResultadoRutaGrafo CalcularRutaMasRapida(string origen, string destino)
     {
+        return CalcularRutaDijkstra(origen, destino, ruta => ruta.TiempoMinutos, "más rápida");
+    }
+
+    // Calcula la ruta de menor costo mediante Dijkstra.
+    public ResultadoRutaGrafo CalcularRutaMasEconomica(string origen, string destino)
+    {
+        return CalcularRutaDijkstra(origen, destino, ruta => ruta.Costo, "más económica");
+    }
+
+    private ResultadoRutaGrafo CalcularRutaDijkstra(
+        string origen,
+        string destino,
+        Func<NodoRuta, double> obtenerPeso,
+        string criterio)
+    {
         int indiceOrigen = ObtenerIndiceParada(origen);
         int indiceDestino = ObtenerIndiceParada(destino);
 
@@ -459,67 +481,55 @@ public class GrafoTransporte
         }
 
         int capacidad = codigosParadas.Length;
-
-        int[] distancias = new int[capacidad];
+        double[] distancias = new double[capacidad];
         int[] padres = new int[capacidad];
+        NodoRuta?[] aristasAnteriores = new NodoRuta?[capacidad];
         bool[] procesados = new bool[capacidad];
 
         for (int i = 0; i < capacidad; i++)
         {
-            distancias[i] = int.MaxValue;
+            distancias[i] = double.PositiveInfinity;
             padres[i] = -1;
         }
 
         distancias[indiceOrigen] = 0;
+        PriorityQueue<int, double> cola = new();
+        cola.Enqueue(indiceOrigen, 0);
 
-        ColaPrioridadMinima cola = new ColaPrioridadMinima(capacidad);
-        cola.Insertar(indiceOrigen, 0);
-
-        while (!cola.EstaVacia())
+        while (cola.Count > 0)
         {
-            NodoPrioridad actual = cola.ExtraerMinimo();
-            int u = actual.IndiceParada;
-
-            // Ignora entradas antiguas de la cola.
-            if (actual.DistanciaAcumulada != distancias[u])
-            {
-                continue;
-            }
-
-            if (procesados[u])
+            cola.TryDequeue(out int u, out double distanciaActual);
+            if (distanciaActual != distancias[u] || procesados[u])
             {
                 continue;
             }
 
             procesados[u] = true;
-
             if (u == indiceDestino)
             {
                 break;
             }
 
             NodoRuta? vecino = listaAdyacencia[u];
-
             while (vecino != null)
             {
                 int v = ObtenerIndiceParada(vecino.CodigoDestino);
-
-                // Ignora conexiones que ya no apuntan a paradas registradas.
                 if (v != -1 && !procesados[v])
                 {
-                    int peso = vecino.TiempoMinutos;
-
-                    if (distancias[u] != int.MaxValue &&
-                        distancias[u] <= int.MaxValue - peso)
+                    double peso = obtenerPeso(vecino);
+                    if (!double.IsFinite(peso) || peso < 0)
                     {
-                        int nuevaDistancia = distancias[u] + peso;
+                        string mensaje = $"No se puede calcular la ruta: la conexión {vecino.CodigoOrigen} - {vecino.CodigoDestino} tiene un peso inválido.";
+                        return new ResultadoRutaGrafo(false, mensaje, Array.Empty<string>(), 0);
+                    }
 
-                        if (nuevaDistancia < distancias[v])
-                        {
-                            distancias[v] = nuevaDistancia;
-                            padres[v] = u;
-                            cola.Insertar(v, nuevaDistancia);
-                        }
+                    double nuevaDistancia = distancias[u] + peso;
+                    if (double.IsFinite(nuevaDistancia) && nuevaDistancia < distancias[v])
+                    {
+                        distancias[v] = nuevaDistancia;
+                        padres[v] = u;
+                        aristasAnteriores[v] = vecino;
+                        cola.Enqueue(v, nuevaDistancia);
                     }
                 }
 
@@ -527,45 +537,51 @@ public class GrafoTransporte
             }
         }
 
-        if (distancias[indiceDestino] == int.MaxValue)
+        if (double.IsPositiveInfinity(distancias[indiceDestino]))
         {
             string mensaje = $"No existe una ruta conectada entre {origen} y {destino}.";
             Console.WriteLine($"\n{mensaje}");
             return new ResultadoRutaGrafo(false, mensaje, Array.Empty<string>(), 0);
         }
 
-        Console.WriteLine($"\n--- Ruta mas rapida ({codigosParadas[indiceOrigen]} a {codigosParadas[indiceDestino]}) ---");
-        Console.WriteLine($"Tiempo total estimado: {distancias[indiceDestino]} minutos");
-
-        int[] camino = new int[capacidad];
+        int[] caminoIndices = new int[capacidad];
         int cantidadCamino = 0;
-
         int pasoActual = indiceDestino;
-
         while (pasoActual != -1 && cantidadCamino < capacidad)
         {
-            camino[cantidadCamino] = pasoActual;
-            cantidadCamino++;
+            caminoIndices[cantidadCamino++] = pasoActual;
             pasoActual = padres[pasoActual];
         }
 
+        Array.Reverse(caminoIndices, 0, cantidadCamino);
         string[] codigosCamino = new string[cantidadCamino];
-        Console.Write("Ruta a seguir: ");
-
-        for (int i = cantidadCamino - 1; i >= 0; i--)
+        long tiempoTotal = 0;
+        double costoTotal = 0;
+        for (int i = 0; i < cantidadCamino; i++)
         {
-            string codigo = codigosParadas[camino[i]]!;
-            codigosCamino[cantidadCamino - 1 - i] = codigo;
-            Console.Write(codigo);
-
-            if (i > 0)
+            int indice = caminoIndices[i];
+            codigosCamino[i] = codigosParadas[indice]!;
+            if (i == 0)
             {
-                Console.Write(" -> ");
+                continue;
             }
+
+            NodoRuta arista = aristasAnteriores[indice]!;
+            tiempoTotal += arista.TiempoMinutos;
+            costoTotal += arista.Costo;
         }
 
-        Console.WriteLine("\n----------------------------------------\n");
-        return new ResultadoRutaGrafo(true, "OK", codigosCamino, distancias[indiceDestino]);
+        if (tiempoTotal > int.MaxValue || !double.IsFinite(costoTotal))
+        {
+            string mensaje = "El total de tiempo o costo de la ruta excede el rango permitido.";
+            return new ResultadoRutaGrafo(false, mensaje, Array.Empty<string>(), 0);
+        }
+
+        Console.WriteLine($"\n--- Ruta {criterio} ({codigosCamino[0]} a {codigosCamino[^1]}) ---");
+        Console.WriteLine($"Tiempo total: {tiempoTotal} minutos; costo total: Q{costoTotal:F2}");
+        Console.WriteLine("Ruta a seguir: " + string.Join(" -> ", codigosCamino));
+        Console.WriteLine("----------------------------------------\n");
+        return new ResultadoRutaGrafo(true, "OK", codigosCamino, (int)tiempoTotal, costoTotal);
     }
 
     // Elimina todas las conexiones hacia un destino.
