@@ -9,7 +9,11 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <None Update="data\paradas.csv">
+    <Compile Remove="RutasXela.UI - copia\**\*.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="..\data\paradas.csv" Link="data\paradas.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
