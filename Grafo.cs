@@ -1,16 +1,62 @@
 ﻿
 using System;
+using System.Collections.Generic;
+
+public sealed class ConexionRuta
+{
+    public string CodigoOrigen { get; }
+    public string CodigoDestino { get; }
+    public int TiempoMinutos { get; }
+    public double Costo { get; }
+    public int NumeroLinea { get; }
+    public bool UnSoloSentido { get; }
+
+    public ConexionRuta(
+        string codigoOrigen,
+        string codigoDestino,
+        int tiempoMinutos,
+        double costo,
+        int numeroLinea,
+        bool unSoloSentido)
+    {
+        CodigoOrigen = codigoOrigen;
+        CodigoDestino = codigoDestino;
+        TiempoMinutos = tiempoMinutos;
+        Costo = costo;
+        NumeroLinea = numeroLinea;
+        UnSoloSentido = unSoloSentido;
+    }
+}
 
 public class NodoRuta
 {
+    public string CodigoOrigen;
     public string CodigoDestino;
     public int TiempoMinutos;
+    public double Costo;
+    public int NumeroLinea;
+    public bool UnSoloSentido;
     public NodoRuta? Siguiente;
 
     public NodoRuta(string destino, int tiempo)
+        : this("", destino, tiempo, 0, 1, true)
     {
+    }
+
+    public NodoRuta(
+        string origen,
+        string destino,
+        int tiempo,
+        double costo,
+        int numeroLinea,
+        bool unSoloSentido)
+    {
+        CodigoOrigen = origen;
         CodigoDestino = destino;
         TiempoMinutos = tiempo;
+        Costo = costo;
+        NumeroLinea = numeroLinea;
+        UnSoloSentido = unSoloSentido;
         Siguiente = null;
     }
 }
@@ -117,6 +163,18 @@ public class GrafoTransporte
     // Agrega una conexión entre dos paradas.
     public void AgregarRuta(string origen, string destino, int tiempo, bool unSoloSentido = false)
     {
+        AgregarRuta(origen, destino, tiempo, 0, 1, unSoloSentido);
+    }
+
+    // Agrega una conexión con todos sus metadatos.
+    public void AgregarRuta(
+        string origen,
+        string destino,
+        int tiempo,
+        double costo,
+        int numeroLinea,
+        bool unSoloSentido = false)
+    {
         if (tiempo < 0)
         {
             Console.WriteLine("ERROR: El tiempo no puede ser negativo.");
@@ -135,16 +193,25 @@ public class GrafoTransporte
         origen = codigosParadas[indiceOrigen]!;
         destino = codigosParadas[indiceDestino]!;
 
-        AgregarConexion(indiceOrigen, destino, tiempo);
+        AgregarConexion(
+            indiceOrigen, origen, destino, tiempo, costo, numeroLinea, unSoloSentido);
 
         if (!unSoloSentido)
         {
-            AgregarConexion(indiceDestino, origen, tiempo);
+            AgregarConexion(
+                indiceDestino, destino, origen, tiempo, costo, numeroLinea, false);
         }
     }
 
-    // Agrega una conexión o actualiza su tiempo si ya existe.
-    private void AgregarConexion(int indiceOrigen, string destino, int tiempo)
+    // Agrega una conexión o actualiza sus datos si ya existe.
+    private void AgregarConexion(
+        int indiceOrigen,
+        string origen,
+        string destino,
+        int tiempo,
+        double costo,
+        int numeroLinea,
+        bool unSoloSentido)
     {
         NodoRuta? actual = listaAdyacencia[indiceOrigen];
 
@@ -152,16 +219,77 @@ public class GrafoTransporte
         {
             if (string.Equals(actual.CodigoDestino, destino, StringComparison.OrdinalIgnoreCase))
             {
+                actual.CodigoOrigen = origen;
                 actual.TiempoMinutos = tiempo;
+                actual.Costo = costo;
+                actual.NumeroLinea = numeroLinea;
+                actual.UnSoloSentido = unSoloSentido;
                 return;
             }
 
             actual = actual.Siguiente;
         }
 
-        NodoRuta nuevaRuta = new NodoRuta(destino, tiempo);
+        NodoRuta nuevaRuta = new NodoRuta(
+            origen, destino, tiempo, costo, numeroLinea, unSoloSentido);
         nuevaRuta.Siguiente = listaAdyacencia[indiceOrigen];
         listaAdyacencia[indiceOrigen] = nuevaRuta;
+    }
+
+    // Devuelve cada ruta lógica una sola vez, aunque una bidireccional use dos aristas.
+    public IEnumerable<ConexionRuta> ObtenerConexiones()
+    {
+        for (int i = 0; i < listaAdyacencia.Length; i++)
+        {
+            NodoRuta? actual = listaAdyacencia[i];
+
+            while (actual != null)
+            {
+                if (actual.UnSoloSentido ||
+                    StringComparer.OrdinalIgnoreCase.Compare(
+                        actual.CodigoOrigen, actual.CodigoDestino) <= 0 ||
+                    !ExisteAristaBidireccionalInversa(actual))
+                {
+                    yield return new ConexionRuta(
+                        actual.CodigoOrigen,
+                        actual.CodigoDestino,
+                        actual.TiempoMinutos,
+                        actual.Costo,
+                        actual.NumeroLinea,
+                        actual.UnSoloSentido);
+                }
+
+                actual = actual.Siguiente;
+            }
+        }
+    }
+
+    private bool ExisteAristaBidireccionalInversa(NodoRuta conexion)
+    {
+        int indiceInverso = ObtenerIndiceParada(conexion.CodigoDestino);
+
+        if (indiceInverso == -1)
+        {
+            return false;
+        }
+
+        NodoRuta? inversa = listaAdyacencia[indiceInverso];
+
+        while (inversa != null)
+        {
+            if (!inversa.UnSoloSentido &&
+                string.Equals(inversa.CodigoDestino, conexion.CodigoOrigen, StringComparison.OrdinalIgnoreCase) &&
+                inversa.TiempoMinutos == conexion.TiempoMinutos &&
+                inversa.Costo == conexion.Costo &&
+                inversa.NumeroLinea == conexion.NumeroLinea)
+            {
+                return true;
+            }
+
+            inversa = inversa.Siguiente;
+        }
+
+        return false;
     }
 
     // Muestra todas las conexiones del grafo.
