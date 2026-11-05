@@ -3,6 +3,8 @@ using System;
 
 class Program
 {
+    static TablaHash tabla = new TablaHash(31);
+    static Trie trie = new Trie();
     static void Main(string[] args)
     {
         // Datos de prueba para iniciar sin archivo CSV.
@@ -54,12 +56,47 @@ class Program
             {
                 case 1:
                     Console.WriteLine("Búsqueda de paradas por nombre.");
-                    Console.WriteLine("Esta opción todavía necesita la integración del Trie.");
+                    Console.Write("Escriba el nombre (o el inicio del nombre): ");
+                    string texto = Console.ReadLine() ?? "";
+
+                    string[] codigos = trie.BuscarPrefijo(texto, 20);
+
+                    if (codigos.Length == 0)
+                    {
+                        Console.WriteLine("No se encontraron paradas con ese nombre.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"Se encontraron {codigos.Length} parada(s):");
+                        foreach (string cod in codigos)
+                        {
+                            Parada p = tabla.Buscar(cod);
+                            if (p != null)
+                            {
+                                Console.WriteLine($"  [{p.Codigo}] {p.Nombre}");
+                            }
+                        }
+                    }
                     break;
 
                 case 2:
                     Console.WriteLine("Consulta de información de paradas.");
-                    Console.WriteLine("Esta opción todavía necesita la integración de la Tabla Hash.");
+                    Console.Write("Ingrese el código de la parada (Ej. P001): ");
+                    string codigoParada = Console.ReadLine() ?? "";
+
+                    Parada parada = tabla.Buscar(codigoParada);
+
+                    if (parada == null)
+                    {
+                        Console.WriteLine("No se encontró ninguna parada con ese código.");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"  Código: {parada.Codigo}");
+                        Console.WriteLine($"  Nombre: {parada.Nombre}");
+                        Console.WriteLine($"  Latitud: {parada.Latitud}");
+                        Console.WriteLine($"  Longitud: {parada.Longitud}");
+                    }
                     break;
 
                 case 3:

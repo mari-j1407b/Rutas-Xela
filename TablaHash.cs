@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.IO;
 
+
 // Clase que representa el registro de una parada de bus
 public class Parada
 {
