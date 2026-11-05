@@ -59,6 +59,68 @@ public class MockRutasService : IRutasService
         return true;
     }
 
+    public bool ModificarRuta(Ruta actual, Ruta modificada)
+    {
+        if (actual == null || modificada == null || modificada.Tiempo < 0 ||
+            !double.IsFinite(modificada.Costo) || modificada.Costo < 0 || modificada.Linea < 1)
+        {
+            return false;
+        }
+
+        int indice = _r.FindIndex(ruta => ruta.UnSentido == actual.UnSentido &&
+            string.Equals(ruta.Origen, actual.Origen, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(ruta.Destino, actual.Destino, StringComparison.OrdinalIgnoreCase));
+        int origen = Idx(modificada.Origen);
+        int destino = Idx(modificada.Destino);
+        if (indice < 0 || origen < 0 || destino < 0 || origen == destino)
+        {
+            return false;
+        }
+
+        bool conflicto = _r.Where((_, posicion) => posicion != indice).Any(ruta =>
+        {
+            bool mismoSentido = string.Equals(ruta.Origen, _p[origen].Codigo, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(ruta.Destino, _p[destino].Codigo, StringComparison.OrdinalIgnoreCase);
+            bool sentidoInverso = string.Equals(ruta.Origen, _p[destino].Codigo, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(ruta.Destino, _p[origen].Codigo, StringComparison.OrdinalIgnoreCase);
+            return mismoSentido || (sentidoInverso && (!ruta.UnSentido || !modificada.UnSentido));
+        });
+        if (conflicto)
+        {
+            return false;
+        }
+
+        _r[indice] = new Ruta
+        {
+            Origen = _p[origen].Codigo,
+            Destino = _p[destino].Codigo,
+            Tiempo = modificada.Tiempo,
+            Costo = modificada.Costo,
+            UnSentido = modificada.UnSentido,
+            Linea = modificada.Linea
+        };
+        return true;
+    }
+
+    public bool EliminarRuta(Ruta ruta)
+    {
+        if (ruta == null)
+        {
+            return false;
+        }
+
+        int indice = _r.FindIndex(actual => actual.UnSentido == ruta.UnSentido &&
+            string.Equals(actual.Origen, ruta.Origen, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(actual.Destino, ruta.Destino, StringComparison.OrdinalIgnoreCase));
+        if (indice < 0)
+        {
+            return false;
+        }
+
+        _r.RemoveAt(indice);
+        return true;
+    }
+
     public bool ModificarParada(Parada parada)
     {
         int indice = Idx(parada?.Codigo);

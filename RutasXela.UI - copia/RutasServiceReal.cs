@@ -103,6 +103,90 @@ public sealed class RutasServiceReal : IRutasService
         return true;
     }
 
+    public bool ModificarRuta(Ruta actual, Ruta modificada)
+    {
+        if (actual == null || modificada == null ||
+            string.IsNullOrWhiteSpace(modificada.Origen) || string.IsNullOrWhiteSpace(modificada.Destino) ||
+            modificada.Tiempo < 0 || !double.IsFinite(modificada.Costo) || modificada.Costo < 0 || modificada.Linea < 1)
+        {
+            return false;
+        }
+
+        OriginalParada? origen = _datos.TablaHash.Buscar(modificada.Origen);
+        OriginalParada? destino = _datos.TablaHash.Buscar(modificada.Destino);
+        if (origen == null || destino == null ||
+            string.Equals(origen.Codigo, destino.Codigo, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        List<Ruta> rutas = ObtenerRutas().ToList();
+        int indice = rutas.FindIndex(ruta => EsMismaRuta(ruta, actual));
+        if (indice < 0)
+        {
+            return false;
+        }
+
+        var rutaActualizada = new Ruta
+        {
+            Origen = origen.Codigo,
+            Destino = destino.Codigo,
+            Tiempo = modificada.Tiempo,
+            Costo = modificada.Costo,
+            UnSentido = modificada.UnSentido,
+            Linea = modificada.Linea
+        };
+
+        bool conflicto = rutas.Where((_, posicion) => posicion != indice).Any(ruta =>
+        {
+            bool mismoSentido = string.Equals(ruta.Origen, rutaActualizada.Origen, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(ruta.Destino, rutaActualizada.Destino, StringComparison.OrdinalIgnoreCase);
+            bool sentidoInverso = string.Equals(ruta.Origen, rutaActualizada.Destino, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(ruta.Destino, rutaActualizada.Origen, StringComparison.OrdinalIgnoreCase);
+            return mismoSentido || (sentidoInverso && (!ruta.UnSentido || !rutaActualizada.UnSentido));
+        });
+        if (conflicto)
+        {
+            return false;
+        }
+
+        rutas[indice] = rutaActualizada;
+        string rutaCsv = _datos.RutaArchivo;
+        PersistirCambios(_paradasPresentacion, rutas);
+        _datos = new CargadorDatos(rutaCsv);
+        ActualizarParadasPresentacion();
+        return true;
+    }
+
+    public bool EliminarRuta(Ruta ruta)
+    {
+        if (ruta == null)
+        {
+            return false;
+        }
+
+        List<Ruta> rutas = ObtenerRutas().ToList();
+        int indice = rutas.FindIndex(actual => EsMismaRuta(actual, ruta));
+        if (indice < 0)
+        {
+            return false;
+        }
+
+        rutas.RemoveAt(indice);
+        string rutaCsv = _datos.RutaArchivo;
+        PersistirCambios(_paradasPresentacion, rutas);
+        _datos = new CargadorDatos(rutaCsv);
+        ActualizarParadasPresentacion();
+        return true;
+    }
+
+    private static bool EsMismaRuta(Ruta primera, Ruta segunda)
+    {
+        return primera.UnSentido == segunda.UnSentido &&
+            string.Equals(primera.Origen, segunda.Origen, StringComparison.OrdinalIgnoreCase) &&
+            string.Equals(primera.Destino, segunda.Destino, StringComparison.OrdinalIgnoreCase);
+    }
+
     public bool ModificarParada(Parada parada)
     {
         if (parada == null || string.IsNullOrWhiteSpace(parada.Codigo) || string.IsNullOrWhiteSpace(parada.Nombre) ||

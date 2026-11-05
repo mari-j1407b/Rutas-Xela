@@ -203,6 +203,8 @@ public class RoundedComboInput : RoundedInput
 // ─────────────────────────────────────────────────────────────
 public class MapPanel : RoundedPanel
 {
+    private const int AnchoAreaDibujo = 1200;
+    private const int AltoAreaDibujo = 900;
     private Parada[] _paradas = Array.Empty<Parada>();
 
     [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -225,6 +227,7 @@ public class MapPanel : RoundedPanel
     [Browsable(false), DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string Seleccion { get; set; }      // parada seleccionada en el buscador
     public event Action<string> ParadaSeleccionada;
+    public event Action<Ruta[]> RutasSeleccionadas;
 
     private Dictionary<string, PointF> CalcularPosiciones()
     {
@@ -234,12 +237,12 @@ public class MapPanel : RoundedPanel
         double anchoGeografico = AreaGeograficaXela.CoordenadaXMaxima - AreaGeograficaXela.CoordenadaXMinima;
         double altoGeografico = AreaGeograficaXela.CoordenadaYMaxima - AreaGeograficaXela.CoordenadaYMinima;
         float padX = 60, padTop = 60, padBottom = 60;
-        float anchoDisponible = Math.Max(1, Width - padX * 2);
-        float altoDisponible = Math.Max(1, Height - padTop - padBottom);
-        double escala = Math.Min(anchoDisponible / anchoGeografico, altoDisponible / altoGeografico) * 1.16;
+        float anchoDisponible = Math.Max(1, AnchoAreaDibujo - padX * 2);
+        float altoDisponible = Math.Max(1, AltoAreaDibujo - padTop - padBottom);
+        double escala = Math.Min(anchoDisponible / anchoGeografico, altoDisponible / altoGeografico);
         double anchoMapa = anchoGeografico * escala;
         double altoMapa = altoGeografico * escala;
-        double inicioX = (Width - anchoMapa) / 2;
+        double inicioX = (AnchoAreaDibujo - anchoMapa) / 2;
         double inicioY = padTop + (altoDisponible - altoMapa) / 2;
 
         foreach (var p in Paradas)
@@ -256,7 +259,7 @@ public class MapPanel : RoundedPanel
         base.OnMouseClick(e);
         var posiciones = CalcularPosiciones();
         string seleccionada = null;
-        double distanciaMinima = 18 * 18;
+        double distanciaParadaMinima = 18 * 18;
 
         foreach (var parada in Paradas)
         {
@@ -268,9 +271,9 @@ public class MapPanel : RoundedPanel
             double dx = e.X - posicion.X;
             double dy = e.Y - posicion.Y;
             double distancia = dx * dx + dy * dy;
-            if (distancia <= distanciaMinima)
+            if (distancia <= distanciaParadaMinima)
             {
-                distanciaMinima = distancia;
+                distanciaParadaMinima = distancia;
                 seleccionada = parada.Codigo;
             }
         }
@@ -278,6 +281,66 @@ public class MapPanel : RoundedPanel
         Seleccion = seleccionada;
         Invalidate();
         ParadaSeleccionada?.Invoke(seleccionada);
+        if (seleccionada != null)
+        {
+            RutasSeleccionadas?.Invoke(Array.Empty<Ruta>());
+            return;
+        }
+
+        var rutasCercanas = Rutas
+            .Select(ruta => (Ruta: ruta, Distancia: DistanciaRutaAlPunto(ruta, posiciones, e.Location)))
+            .Where(candidato => candidato.Distancia <= 10 * 10)
+            .OrderBy(candidato => candidato.Distancia)
+            .ToArray();
+        if (rutasCercanas.Length == 0)
+        {
+            RutasSeleccionadas?.Invoke(Array.Empty<Ruta>());
+            return;
+        }
+
+        double distanciaMinima = Math.Sqrt(rutasCercanas[0].Distancia);
+        Ruta[] seleccionadas = rutasCercanas
+            .Where(candidato => Math.Sqrt(candidato.Distancia) - distanciaMinima <= 3)
+            .Select(candidato => candidato.Ruta)
+            .ToArray();
+        RutasSeleccionadas?.Invoke(seleccionadas);
+    }
+
+    private static double DistanciaRutaAlPunto(Ruta ruta, IReadOnlyDictionary<string, PointF> posiciones, Point punto)
+    {
+        if (!posiciones.TryGetValue(ruta.Origen, out PointF origen) ||
+            !posiciones.TryGetValue(ruta.Destino, out PointF destino))
+        {
+            return double.PositiveInfinity;
+        }
+
+        PointF[] trazo = Elbow(origen, destino);
+        double distanciaMinima = double.PositiveInfinity;
+        for (int indice = 1; indice < trazo.Length; indice++)
+        {
+            distanciaMinima = Math.Min(distanciaMinima,
+                DistanciaSegmentoCuadrada(punto, trazo[indice - 1], trazo[indice]));
+        }
+        return distanciaMinima;
+    }
+
+    private static double DistanciaSegmentoCuadrada(Point punto, PointF inicio, PointF fin)
+    {
+        double dx = fin.X - inicio.X;
+        double dy = fin.Y - inicio.Y;
+        double longitudCuadrada = dx * dx + dy * dy;
+        if (longitudCuadrada == 0)
+        {
+            dx = punto.X - inicio.X;
+            dy = punto.Y - inicio.Y;
+            return dx * dx + dy * dy;
+        }
+
+        double proyeccion = ((punto.X - inicio.X) * dx + (punto.Y - inicio.Y) * dy) / longitudCuadrada;
+        proyeccion = Math.Clamp(proyeccion, 0, 1);
+        double diferenciaX = punto.X - (inicio.X + proyeccion * dx);
+        double diferenciaY = punto.Y - (inicio.Y + proyeccion * dy);
+        return diferenciaX * diferenciaX + diferenciaY * diferenciaY;
     }
 
     // Línea con un codo a 45° (look de mapa de metro)

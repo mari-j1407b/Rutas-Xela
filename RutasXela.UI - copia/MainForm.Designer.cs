@@ -23,6 +23,7 @@ namespace RutasXela.UI
             btnCsv = new RoundedButton();
             panelContenido = new Panel();
             panelDerecho = new Panel();
+            panelMapa = new Panel();
             _map = new MapPanel();
             espaciador = new Panel();
             logCard = new RoundedPanel();
@@ -66,6 +67,7 @@ namespace RutasXela.UI
             panelEncabezado.SuspendLayout();
             panelContenido.SuspendLayout();
             panelDerecho.SuspendLayout();
+            panelMapa.SuspendLayout();
             logCard.SuspendLayout();
             panelIzquierdo.SuspendLayout();
             cardBuscar.SuspendLayout();
@@ -140,7 +142,7 @@ namespace RutasXela.UI
             // 
             // panelDerecho
             // 
-            panelDerecho.Controls.Add(_map);
+            panelDerecho.Controls.Add(panelMapa);
             panelDerecho.Controls.Add(espaciador);
             panelDerecho.Controls.Add(logCard);
             panelDerecho.Dock = DockStyle.Fill;
@@ -149,13 +151,25 @@ namespace RutasXela.UI
             panelDerecho.Padding = new Padding(16, 0, 0, 0);
             panelDerecho.Size = new Size(874, 687);
             panelDerecho.TabIndex = 0;
-            // 
+            //
+            // panelMapa
+            //
+            panelMapa.AutoScroll = true;
+            panelMapa.AutoScrollMinSize = new Size(2400, 1800);
+            panelMapa.BackColor = Color.FromArgb(244, 245, 250);
+            panelMapa.Location = new Point(16, 0);
+            panelMapa.Name = "panelMapa";
+            panelMapa.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            panelMapa.Size = new Size(858, 503);
+            panelMapa.TabIndex = 0;
+            panelMapa.Controls.Add(_map);
+            //
             // _map
-            // 
+            //
             _map.BackColor = Color.FromArgb(244, 245, 250);
-            _map.Location = new Point(16, 0);
+            _map.Location = new Point(0, 0);
             _map.Name = "_map";
-            _map.Size = new Size(858, 503);
+            _map.Size = new Size(2400, 1800);
             _map.TabIndex = 0;
             _map.Paint += _map_Paint;
             // 
@@ -620,6 +634,7 @@ namespace RutasXela.UI
             panelEncabezado.ResumeLayout(false);
             panelEncabezado.PerformLayout();
             panelContenido.ResumeLayout(false);
+            panelMapa.ResumeLayout(false);
             panelDerecho.ResumeLayout(false);
             logCard.ResumeLayout(false);
             logCard.PerformLayout();
@@ -644,6 +659,7 @@ namespace RutasXela.UI
         private RutasXela.UI.RoundedButton btnCsv;
         private System.Windows.Forms.Panel panelContenido;
         private System.Windows.Forms.Panel panelDerecho;
+        private System.Windows.Forms.Panel panelMapa;
         private RutasXela.UI.MapPanel _map;
         private System.Windows.Forms.Panel espaciador;
         private RutasXela.UI.RoundedPanel logCard;

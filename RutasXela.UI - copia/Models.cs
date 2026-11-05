@@ -54,6 +54,8 @@ public interface IRutasService
 
     bool AgregarParada(Parada p);              // Tabla Hash + Trie + Grafo (vértice) + Union-Find (MakeSet)
     bool AgregarRuta(Ruta r);                  // Grafo (arista) + Union-Find (Union)
+    bool ModificarRuta(Ruta actual, Ruta modificada);
+    bool EliminarRuta(Ruta ruta);
     bool ModificarParada(Parada parada);
     int ContarRutasConectadas(string codigo);
     bool EliminarParada(string codigo);

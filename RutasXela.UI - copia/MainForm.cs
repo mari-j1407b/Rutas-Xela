@@ -26,6 +26,7 @@ public partial class MainForm : Form
         CrearPanelDetalleParada();
         panelDerecho.Resize += (_, _) => PosicionarPanelDetalle();
         _map.ParadaSeleccionada += SeleccionarParada;
+        _map.RutasSeleccionadas += SeleccionarRuta;
         txtBuscar.TextChanged += (_, _) => Sugerir();
         txtBuscar.KeyDown += (_, e) =>
         {
@@ -283,6 +284,166 @@ public partial class MainForm : Form
         {
             MessageBox.Show(this, "No se eliminó la parada:\n" + ex.Message, "Error al guardar", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    private void SeleccionarRuta(Ruta[] candidatas)
+    {
+        if (candidatas == null || candidatas.Length == 0)
+        {
+            return;
+        }
+
+        Ruta seleccionada = candidatas[0];
+        if (candidatas.Length > 1)
+        {
+            using var selector = new Form
+            {
+                Text = "Seleccionar conexión",
+                FormBorderStyle = FormBorderStyle.FixedDialog,
+                StartPosition = FormStartPosition.CenterParent,
+                ClientSize = new Size(480, 150),
+                MinimizeBox = false,
+                MaximizeBox = false
+            };
+            var etiqueta = new Label { Text = "Hay varias rutas muy cercanas. Selecciona la conexión:", Location = new Point(14, 14), AutoSize = true };
+            var opciones = new ComboBox
+            {
+                DropDownStyle = ComboBoxStyle.DropDownList,
+                Location = new Point(14, 42),
+                Size = new Size(452, 28)
+            };
+            opciones.Items.AddRange(candidatas.Select(DescribirRuta).Cast<object>().ToArray());
+            opciones.SelectedIndex = 0;
+            var aceptar = new Button { Text = "Seleccionar", DialogResult = DialogResult.OK, Location = new Point(286, 96), Size = new Size(88, 32) };
+            var cancelar = new Button { Text = "Cancelar", DialogResult = DialogResult.Cancel, Location = new Point(378, 96), Size = new Size(88, 32) };
+            selector.Controls.AddRange(new Control[] { etiqueta, opciones, aceptar, cancelar });
+            selector.AcceptButton = aceptar;
+            selector.CancelButton = cancelar;
+            if (selector.ShowDialog(this) != DialogResult.OK)
+            {
+                return;
+            }
+            seleccionada = candidatas[opciones.SelectedIndex];
+        }
+
+        EditarRutaSeleccionada(seleccionada);
+    }
+
+    private string DescribirRuta(Ruta ruta)
+    {
+        string sentido = ruta.UnSentido ? "un sentido" : "bidireccional";
+        return $"{ruta.Origen} ({Nombre(ruta.Origen)}) → {ruta.Destino} ({Nombre(ruta.Destino)}) · Línea {ruta.Linea} · {ruta.Tiempo} min · Q{ruta.Costo.ToString("F2", CultureInfo.InvariantCulture)} · {sentido}";
+    }
+
+    private void EditarRutaSeleccionada(Ruta rutaActual)
+    {
+        Parada[] paradas = _svc.ObtenerParadas();
+        using var dialogo = new Form
+        {
+            Text = $"Editar ruta {rutaActual.Origen} → {rutaActual.Destino}",
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            StartPosition = FormStartPosition.CenterParent,
+            ClientSize = new Size(460, 315),
+            MinimizeBox = false,
+            MaximizeBox = false
+        };
+
+        var etiquetaOrigen = new Label { Text = "Origen", Location = new Point(16, 16), AutoSize = true };
+        var entradaOrigen = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(16, 40), Size = new Size(204, 28) };
+        entradaOrigen.Items.AddRange(paradas);
+        var etiquetaDestino = new Label { Text = "Destino", Location = new Point(236, 16), AutoSize = true };
+        var entradaDestino = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList, Location = new Point(236, 40), Size = new Size(204, 28) };
+        entradaDestino.Items.AddRange(paradas);
+        entradaOrigen.SelectedIndex = Array.FindIndex(paradas, parada => string.Equals(parada.Codigo, rutaActual.Origen, StringComparison.OrdinalIgnoreCase));
+        entradaDestino.SelectedIndex = Array.FindIndex(paradas, parada => string.Equals(parada.Codigo, rutaActual.Destino, StringComparison.OrdinalIgnoreCase));
+
+        var etiquetaTiempo = new Label { Text = "Tiempo (minutos)", Location = new Point(16, 86), AutoSize = true };
+        var entradaTiempo = new TextBox { Text = rutaActual.Tiempo.ToString(CultureInfo.InvariantCulture), Location = new Point(16, 110), Size = new Size(120, 27) };
+        var etiquetaCosto = new Label { Text = "Costo (Q)", Location = new Point(158, 86), AutoSize = true };
+        var entradaCosto = new TextBox { Text = rutaActual.Costo.ToString("R", CultureInfo.InvariantCulture), Location = new Point(158, 110), Size = new Size(120, 27) };
+        var etiquetaLinea = new Label { Text = "Número de línea", Location = new Point(300, 86), AutoSize = true };
+        var entradaLinea = new TextBox { Text = rutaActual.Linea.ToString(CultureInfo.InvariantCulture), Location = new Point(300, 110), Size = new Size(140, 27) };
+        var unSentido = new CheckBox { Text = "Ruta de un solo sentido", Checked = rutaActual.UnSentido, Location = new Point(16, 158), AutoSize = true };
+
+        var guardar = new Button { Text = "Guardar", Location = new Point(184, 258), Size = new Size(80, 32) };
+        var eliminar = new Button { Text = "Eliminar ruta", Location = new Point(270, 258), Size = new Size(88, 32) };
+        var cancelar = new Button { Text = "Cancelar", DialogResult = DialogResult.Cancel, Location = new Point(364, 258), Size = new Size(76, 32) };
+        guardar.Click += (_, _) =>
+        {
+            if (entradaOrigen.SelectedItem is not Parada origen || entradaDestino.SelectedItem is not Parada destino ||
+                string.Equals(origen.Codigo, destino.Codigo, StringComparison.OrdinalIgnoreCase) ||
+                !int.TryParse(entradaTiempo.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int tiempo) || tiempo < 0 ||
+                !Dbl(entradaCosto.Text, out double costo) || costo < 0 ||
+                !int.TryParse(entradaLinea.Text, NumberStyles.Integer, CultureInfo.InvariantCulture, out int linea) || linea < 1)
+            {
+                MessageBox.Show(dialogo, "Selecciona paradas distintas e ingresa tiempo, costo y línea válidos.", "Datos inválidos", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+
+            var rutaModificada = new Ruta
+            {
+                Origen = origen.Codigo,
+                Destino = destino.Codigo,
+                Tiempo = tiempo,
+                Costo = costo,
+                UnSentido = unSentido.Checked,
+                Linea = linea
+            };
+            try
+            {
+                if (!_svc.ModificarRuta(rutaActual, rutaModificada))
+                {
+                    MessageBox.Show(dialogo, "No se pudo modificar la ruta. Verifica que las paradas existan y que no se duplique una conexión.", "No se pudo modificar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _map.Camino = null;
+                _map.Recorrido = null;
+                Log($"Ruta modificada: {DescribirRuta(rutaModificada)}");
+                Refrescar();
+                dialogo.DialogResult = DialogResult.OK;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or ArgumentException or System.Security.SecurityException)
+            {
+                MessageBox.Show(dialogo, "No se guardaron los cambios de la ruta:\n" + ex.Message, "Error al guardar", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        };
+        eliminar.Click += (_, _) =>
+        {
+            if (MessageBox.Show(dialogo, $"¿Eliminar únicamente la conexión {rutaActual.Origen} → {rutaActual.Destino}?", "Confirmar eliminación", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes)
+            {
+                return;
+            }
+
+            try
+            {
+                if (!_svc.EliminarRuta(rutaActual))
+                {
+                    MessageBox.Show(dialogo, "No se pudo eliminar la ruta seleccionada.", "No se pudo eliminar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
+                }
+
+                _map.Camino = null;
+                _map.Recorrido = null;
+                Log($"Ruta eliminada: {rutaActual.Origen} → {rutaActual.Destino}. Las paradas se conservaron.");
+                Refrescar();
+                dialogo.DialogResult = DialogResult.Abort;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException or ArgumentException or System.Security.SecurityException)
+            {
+                MessageBox.Show(dialogo, "No se eliminó la ruta:\n" + ex.Message, "Error al eliminar", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+        };
+
+        dialogo.Controls.AddRange(new Control[]
+        {
+            etiquetaOrigen, entradaOrigen, etiquetaDestino, entradaDestino,
+            etiquetaTiempo, entradaTiempo, etiquetaCosto, entradaCosto, etiquetaLinea, entradaLinea,
+            unSentido, guardar, eliminar, cancelar
+        });
+        dialogo.AcceptButton = guardar;
+        dialogo.CancelButton = cancelar;
+        dialogo.ShowDialog(this);
     }
 
     // — Dijkstra
