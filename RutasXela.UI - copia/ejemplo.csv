@@ -1,0 +1,6 @@
+# PARADA,codigo,nombre,latitud,longitud
+PARADA,P009,Minerva,14.8500,-91.5000
+PARADA,P010,Zona 3,14.8250,-91.5350
+# RUTA,origen,destino,tiempo,costo,unSentido,linea
+RUTA,P006,P009,6,2.50,0,6
+RUTA,P002,P010,9,2.00,0,7

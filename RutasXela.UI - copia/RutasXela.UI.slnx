@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="../Rutas-Xela.csproj" />
+  <Project Path="RutasXela.UI.csproj" />
+</Solution>
