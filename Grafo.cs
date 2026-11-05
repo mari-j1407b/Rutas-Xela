@@ -28,6 +28,22 @@ public sealed class ConexionRuta
     }
 }
 
+public sealed class ResultadoRutaGrafo
+{
+    public bool Exito { get; }
+    public string Mensaje { get; }
+    public string[] Camino { get; }
+    public int TiempoTotal { get; }
+
+    public ResultadoRutaGrafo(bool exito, string mensaje, string[] camino, int tiempoTotal)
+    {
+        Exito = exito;
+        Mensaje = mensaje;
+        Camino = camino;
+        TiempoTotal = tiempoTotal;
+    }
+}
+
 public class NodoRuta
 {
     public string CodigoOrigen;
@@ -135,7 +151,12 @@ public class GrafoTransporte
             }
         }
 
-        Console.WriteLine("ERROR: El grafo está lleno.");
+        int nuevaCapacidad = codigosParadas.Length * 2;
+        Array.Resize(ref codigosParadas, nuevaCapacidad);
+        Array.Resize(ref listaAdyacencia, nuevaCapacidad);
+        codigosParadas[cantidadActualParadas] = codigo;
+        listaAdyacencia[cantidadActualParadas] = null;
+        cantidadActualParadas++;
     }
 
     // Muestra todas las paradas registradas.
@@ -327,17 +348,19 @@ public class GrafoTransporte
     }
 
     // Realiza el recorrido en anchura.
-    public void RecorridoBFS(string codigoInicio)
+    public string[] RecorridoBFS(string codigoInicio)
     {
         int indiceInicio = ObtenerIndiceParada(codigoInicio);
 
         if (indiceInicio == -1)
         {
             Console.WriteLine($"Error: La parada {codigoInicio} no existe para iniciar el BFS.");
-            return;
+            return Array.Empty<string>();
         }
 
         bool[] visitados = new bool[codigosParadas.Length];
+        string[] recorrido = new string[cantidadActualParadas];
+        int cantidadRecorrida = 0;
         ColaCircular cola = new ColaCircular(codigosParadas.Length);
 
         visitados[indiceInicio] = true;
@@ -349,6 +372,7 @@ public class GrafoTransporte
         {
             int actual = cola.Desencolar();
 
+            recorrido[cantidadRecorrida++] = codigosParadas[actual]!;
             Console.Write($"{codigosParadas[actual]} -> ");
 
             NodoRuta? vecino = listaAdyacencia[actual];
@@ -368,20 +392,24 @@ public class GrafoTransporte
         }
 
         Console.WriteLine("FIN\n------------------------------------");
+        Array.Resize(ref recorrido, cantidadRecorrida);
+        return recorrido;
     }
 
     // Realiza el recorrido en profundidad.
-    public void RecorridoDFS(string codigoInicio)
+    public string[] RecorridoDFS(string codigoInicio)
     {
         int indiceInicio = ObtenerIndiceParada(codigoInicio);
 
         if (indiceInicio == -1)
         {
             Console.WriteLine($"Error: La parada {codigoInicio} no existe para iniciar el DFS.");
-            return;
+            return Array.Empty<string>();
         }
 
         bool[] visitados = new bool[codigosParadas.Length];
+        string[] recorrido = new string[cantidadActualParadas];
+        int cantidadRecorrida = 0;
         PilaEstatica pila = new PilaEstatica(codigosParadas.Length);
 
         visitados[indiceInicio] = true;
@@ -393,6 +421,7 @@ public class GrafoTransporte
         {
             int actual = pila.Desapilar();
 
+            recorrido[cantidadRecorrida++] = codigosParadas[actual]!;
             Console.Write($"{codigosParadas[actual]} -> ");
 
             NodoRuta? vecino = listaAdyacencia[actual];
@@ -412,18 +441,21 @@ public class GrafoTransporte
         }
 
         Console.WriteLine("FIN\n------------------------------------");
+        Array.Resize(ref recorrido, cantidadRecorrida);
+        return recorrido;
     }
 
     // Calcula la ruta de menor tiempo mediante Dijkstra.
-    public void CalcularRutaMasRapida(string origen, string destino)
+    public ResultadoRutaGrafo CalcularRutaMasRapida(string origen, string destino)
     {
         int indiceOrigen = ObtenerIndiceParada(origen);
         int indiceDestino = ObtenerIndiceParada(destino);
 
         if (indiceOrigen == -1 || indiceDestino == -1)
         {
-            Console.WriteLine($"Error: No se puede calcular la ruta. {origen} o {destino} no existen.");
-            return;
+            string mensaje = $"No se puede calcular la ruta. {origen} o {destino} no existen.";
+            Console.WriteLine($"Error: {mensaje}");
+            return new ResultadoRutaGrafo(false, mensaje, Array.Empty<string>(), 0);
         }
 
         int capacidad = codigosParadas.Length;
@@ -497,8 +529,9 @@ public class GrafoTransporte
 
         if (distancias[indiceDestino] == int.MaxValue)
         {
-            Console.WriteLine($"\nNo existe una ruta conectada entre {origen} y {destino}.");
-            return;
+            string mensaje = $"No existe una ruta conectada entre {origen} y {destino}.";
+            Console.WriteLine($"\n{mensaje}");
+            return new ResultadoRutaGrafo(false, mensaje, Array.Empty<string>(), 0);
         }
 
         Console.WriteLine($"\n--- Ruta mas rapida ({codigosParadas[indiceOrigen]} a {codigosParadas[indiceDestino]}) ---");
@@ -516,11 +549,14 @@ public class GrafoTransporte
             pasoActual = padres[pasoActual];
         }
 
+        string[] codigosCamino = new string[cantidadCamino];
         Console.Write("Ruta a seguir: ");
 
         for (int i = cantidadCamino - 1; i >= 0; i--)
         {
-            Console.Write(codigosParadas[camino[i]]);
+            string codigo = codigosParadas[camino[i]]!;
+            codigosCamino[cantidadCamino - 1 - i] = codigo;
+            Console.Write(codigo);
 
             if (i > 0)
             {
@@ -529,6 +565,7 @@ public class GrafoTransporte
         }
 
         Console.WriteLine("\n----------------------------------------\n");
+        return new ResultadoRutaGrafo(true, "OK", codigosCamino, distancias[indiceDestino]);
     }
 
     // Elimina todas las conexiones hacia un destino.

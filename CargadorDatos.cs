@@ -10,8 +10,17 @@ public sealed class CargadorDatos
     public IReadOnlyList<Parada> Paradas { get; }
 
     public CargadorDatos()
+        : this(Path.Combine(AppContext.BaseDirectory, "data", "paradas.csv"))
     {
-        string rutaArchivo = Path.Combine(AppContext.BaseDirectory, "data", "paradas.csv");
+    }
+
+    public CargadorDatos(string rutaArchivo)
+    {
+        if (string.IsNullOrWhiteSpace(rutaArchivo))
+        {
+            throw new ArgumentException("La ruta del CSV es obligatoria.", nameof(rutaArchivo));
+        }
+
         string[] lineas = File.ReadAllLines(rutaArchivo);
         Parada[] paradasLeidas = new Parada[lineas.Length];
         int[] lineasParadas = new int[lineas.Length];
@@ -68,7 +77,7 @@ public sealed class CargadorDatos
         Array.Resize(ref rutasLeidas, cantidadRutas);
 
         var tablaHash = new TablaHash(Math.Max(11, cantidadParadas * 2 + 1));
-        var grafo = new GrafoTransporte(cantidadParadas);
+        var grafo = new GrafoTransporte(Math.Max(10, cantidadParadas));
         var trie = new Trie();
         var unionFind = new UnionFind();
 
