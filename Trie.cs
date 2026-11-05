@@ -20,7 +20,7 @@ class NodoTrie
     }
 }
 
-class Trie
+public class Trie
 {
     private NodoTrie Raiz;
 
