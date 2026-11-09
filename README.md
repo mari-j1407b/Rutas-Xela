@@ -1,6 +1,6 @@
 # Rutas Xela
 
-Rutas Xela es una aplicación de escritorio que busca representar y administrar una pequeña red de transporte urbano. El sistema permite registrar paradas, establecer conexiones entre ellas y consultar las rutas disponibles para encontrar caminos entre diferentes puntos de la red.
+Rutas Xela es una aplicación de escritorio que representa y administra una pequeña red de transporte urbano. El sistema permite registrar paradas, establecer conexiones entre ellas y consultar las rutas disponibles para encontrar caminos entre diferentes puntos de la red.
 
 Para desarrollar el proyecto se implementaron cuatro estructuras de datos: Tabla Hash, Grafo, Union-Find y Trie. Cada una tiene una función específica dentro del sistema y trabajan de manera integrada para gestionar la información y realizar las consultas.
 
@@ -48,10 +48,4 @@ Proyecto desarrollado por tres integrantes:
 
 ## Estado del proyecto
 
-En desarrollo.
----
-
-**Universidad Rafael Landívar**  
-Facultad de Ingeniería  
-Ingeniería en Informática y Sistemas  
-Curso: Estructura de Datos II
+Finalizado.
